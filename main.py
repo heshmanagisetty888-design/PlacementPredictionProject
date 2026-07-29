@@ -1,16 +1,20 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+import pandas as pd
+df=pd.read_excel('Data/placement_predict_50k_Dataset.xlsx')
+print(df.head())
+print("========================================================================")
+print(df.tail())
+print("========================================================================")
+print("number of rows and columns\n")
+print(df.shape)
+print("=================================================================")
+print("Columns are \n", df.columns)
+print("=================================================================")
+print(df.info())
+print("=================================================================")
+print(df.describe())
+print("=================================================================")
+print(df.isnull().sum())
+print("=================================================================")
+print("duplicated values count : ",df.duplicated().sum())
+print("=================================================================")
+print(df["PlacementStatus"].value_counts())
