@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dataset Loading - Student Performance Dashboard</title>
+    <title>Dataset Loading</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Copy all styles from index.html */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; }
-
+        body { background: #f0f2f5; display: flex; }
         .sidebar { width: 280px; height: 100vh; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 30px 20px; position: fixed; left: 0; top: 0; overflow-y: auto; box-shadow: 4px 0 20px rgba(0,0,0,0.3); z-index: 1000; }
         .sidebar::-webkit-scrollbar { width: 5px; }
         .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
@@ -19,47 +17,31 @@
         .sidebar-brand { text-align: center; padding: 20px 0 30px 0; border-bottom: 2px solid rgba(255,255,255,0.1); margin-bottom: 30px; }
         .sidebar-brand h2 { color: #fff; font-weight: 800; font-size: 1.5rem; }
         .sidebar-brand h2 i { color: #f7971e; margin-right: 10px; }
-        .sidebar-brand p { color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-top: 5px; }
         .sidebar-nav { list-style: none; padding: 0; }
         .sidebar-nav li { margin-bottom: 8px; }
         .sidebar-nav li a { display: flex; align-items: center; padding: 14px 20px; color: rgba(255,255,255,0.7); text-decoration: none; border-radius: 12px; transition: all 0.3s ease; font-weight: 500; font-size: 0.95rem; }
         .sidebar-nav li a i { margin-right: 15px; font-size: 1.2rem; width: 25px; text-align: center; }
         .sidebar-nav li a:hover { background: rgba(255,255,255,0.1); color: #fff; transform: translateX(5px); }
         .sidebar-nav li a.active { background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; font-weight: 600; box-shadow: 0 4px 15px rgba(247,151,30,0.4); }
-        .sidebar-nav li a .badge { margin-left: auto; background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; font-weight: 600; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; }
-
         .main-content { margin-left: 280px; padding: 40px; width: calc(100% - 280px); min-height: 100vh; }
-        .page-header { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.2); }
-        .page-header h1 { font-weight: 800; color: #1a1a2e; font-size: 2rem; }
-        .page-header h1 i { color: #f7971e; margin-right: 15px; }
+        .header-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .header-card h1 { font-weight: 800; color: #1a1a2e; font-size: 2rem; }
+        .header-card h1 i { color: #f7971e; margin-right: 15px; }
 
-        .upload-area { border: 2px dashed #dee2e6; border-radius: 15px; padding: 40px; text-align: center; background: rgba(255,255,255,0.8); transition: all 0.3s ease; cursor: pointer; }
-        .upload-area:hover { border-color: #f7971e; background: rgba(247,151,30,0.05); }
-        .upload-area.dragover { border-color: #f7971e; background: rgba(247,151,30,0.1); }
-        .upload-area i { font-size: 3rem; color: #f7971e; }
-
-        .card { border: none; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); margin-bottom: 20px; }
-        .card-header { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; border-radius: 15px 15px 0 0 !important; border: none; padding: 20px; font-weight: 600; }
-        .card-header i { color: #f7971e; margin-right: 10px; }
-
-        .btn-primary { background: linear-gradient(135deg, #f7971e, #ffd200); border: none; color: #1a1a2e; font-weight: 600; padding: 12px 30px; border-radius: 10px; transition: all 0.3s ease; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(247,151,30,0.4); color: #1a1a2e; }
-
-        @media (max-width: 992px) {
-            .sidebar { width: 80px; padding: 20px 10px; }
-            .sidebar-brand h2 { font-size: 0; }
-            .sidebar-brand h2 i { font-size: 1.5rem; margin-right: 0; }
-            .sidebar-brand p { display: none; }
-            .sidebar-nav li a { justify-content: center; padding: 14px; font-size: 0; }
-            .sidebar-nav li a i { font-size: 1.5rem; margin-right: 0; }
-            .sidebar-nav li a .badge { display: none; }
-            .sidebar-nav li a span { display: none; }
-            .main-content { margin-left: 80px; width: calc(100% - 80px); padding: 20px; }
-        }
+        .upload-container { background: white; border-radius: 20px; padding: 40px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); text-align: center; }
+        .drop-zone { border: 2px dashed #dee2e6; border-radius: 15px; padding: 40px; transition: all 0.3s; cursor: pointer; background: #f8f9fa; }
+        .drop-zone:hover { border-color: #f7971e; background: #fff; }
+        .drop-zone i { font-size: 3rem; color: #f7971e; }
+        .info-panel { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); height: 100%; }
+        .info-panel h5 { font-weight: 600; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; margin-bottom: 15px; }
+        .info-item { background: #f8f9fa; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .info-item span:last-child { font-weight: 600; }
+        .btn-eda { background: linear-gradient(135deg, #a18cd1, #fbc2eb); color: #1a1a2e; font-weight: 600; border: none; padding: 10px 20px; border-radius: 10px; display: none; margin-top: 15px; transition: all 0.3s; width: 100%; }
+        .btn-eda:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(161, 140, 209, 0.4); }
     </style>
 </head>
 <body>
-    <!-- Vertical Sidebar -->
+    <!-- Sidebar with ALL Links -->
     <div class="sidebar">
         <div class="sidebar-brand">
             <h2><i class="bi bi-graph-up"></i> Dashboard</h2>
@@ -68,168 +50,108 @@
         <ul class="sidebar-nav">
             <li><a href="/"><i class="bi bi-house"></i> <span>Dashboard</span></a></li>
             <li><a href="/dataset_loading" class="active"><i class="bi bi-upload"></i> <span>Dataset Loading</span></a></li>
-            <li><a href="/preprocessing"><i class="bi bi-gear"></i> <span>Preprocessing</span> <span class="badge">5</span></a></li>
+            <li><a href="/preprocessing"><i class="bi bi-gear"></i> <span>Preprocessing</span></a></li>
             <li><a href="/predict"><i class="bi bi-robot"></i> <span>Predict</span></a></li>
-            <li><a href="/students"><i class="bi bi-people"></i> <span>Students</span> <span class="badge">12</span></a></li>
+            <li><a href="/students"><i class="bi bi-people"></i> <span>Students</span></a></li>
+            <li><a href="/eda_info"><i class="bi bi-info-square"></i> <span>EDA Info</span></a></li>
             <li><a href="/analytics"><i class="bi bi-bar-chart"></i> <span>Analytics</span></a></li>
-            <li><a href="/about"><i class="bi bi-info-circle"></i> <span>About</span></a></li>
-            <li><a href="/help"><i class="bi bi-question-circle"></i> <span>Help</span></a></li>
         </ul>
     </div>
 
     <!-- Main Content -->
     <div class="main-content">
-        <div class="page-header">
-            <h1><i class="bi bi-upload"></i> Dataset Loading</h1>
-            <p>Upload your dataset to get started with analysis and predictions</p>
+        <div class="header-card">
+            <h1><i class="bi bi-cloud-upload"></i> Dataset Loading</h1>
+            <p class="text-muted">Upload your dataset to get started with analysis, EDA, and predictions.</p>
         </div>
 
-        <div class="row">
+        <div class="row g-4">
             <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-cloud-upload"></i> Upload Dataset
+                <div class="upload-container">
+                    <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                        <i class="bi bi-file-earmark-arrow-up"></i>
+                        <h5 class="mt-3">Drag & drop your file here</h5>
+                        <p class="text-muted">or click to browse</p>
+                        <input type="file" id="fileInput" style="display: none;" accept=".csv,.xlsx,.xls" onchange="uploadFile()">
+                        <button class="btn btn-warning mt-3" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+                            <i class="bi bi-upload"></i> Choose File
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div class="upload-area" id="dropZone">
-                            <i class="bi bi-file-earmark-arrow-up"></i>
-                            <h5 class="mt-3">Drag & drop your file here</h5>
-                            <p class="text-muted">or click to browse</p>
-                            <form id="uploadForm" enctype="multipart/form-data">
-                                <input class="form-control" type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;">
-                                <button type="button" class="btn btn-outline-secondary me-2" onclick="document.getElementById('fileInput').click()">
-                                    <i class="bi bi-folder-open"></i> Choose File
-                                </button>
-                                <button type="submit" class="btn btn-primary" id="uploadBtn">
-                                    <i class="bi bi-cloud-upload"></i> Upload
-                                </button>
-                            </form>
-                            <div class="alert alert-warning mt-3">
-                                <i class="bi bi-exclamation-triangle"></i>
-                                <strong>Only CSV and Excel (.xlsx, .xls) files are allowed</strong>
-                            </div>
-                        </div>
-                        <div id="uploadMessage" class="mt-3"></div>
-                        <div id="uploadProgress" class="mt-3" style="display: none;">
-                            <div class="progress">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                     role="progressbar" style="width: 100%; background: linear-gradient(135deg, #f7971e, #ffd200);">
-                                    Uploading...
-                                </div>
-                            </div>
-                        </div>
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Only CSV and Excel (.xlsx, .xls) files are allowed
                     </div>
+                    <div id="uploadStatus" class="mt-3"></div>
                 </div>
             </div>
 
             <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-info-circle"></i> Dataset Information
+                <div class="info-panel">
+                    <h5><i class="bi bi-info-circle"></i> Dataset Information</h5>
+                    <div id="emptyState" class="text-center text-muted py-5">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-3">No dataset loaded yet. Please upload a CSV or Excel file.</p>
                     </div>
-                    <div class="card-body" id="datasetInfo">
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> No dataset loaded yet. Please upload a CSV or Excel file.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-table"></i> Dataset Preview
-            </div>
-            <div class="card-body" id="datasetPreview">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Upload a dataset to see preview.
+                    <div id="loadedState" style="display: none;">
+                        <div class="row g-3 mb-3">
+                            <div class="col-6"><div class="info-item"><span>Rows:</span> <span id="infoRows">-</span></div></div>
+                            <div class="col-6"><div class="info-item"><span>Columns:</span> <span id="infoCols">-</span></div></div>
+                        </div>
+                        <h6 class="mt-3 mb-2"><i class="bi bi-list-ul"></i> Column Names & Dtypes</h6>
+                        <div id="colList" style="max-height: 200px; overflow-y: auto;"></div>
+
+                        <button class="btn-eda" id="goToEDA" onclick="window.location.href='/eda_info'">
+                            <i class="bi bi-info-square"></i> View Full EDA Info & Stats
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        $(document).ready(function() {
-            const dropZone = document.getElementById('dropZone');
+        function uploadFile() {
             const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) return;
 
-            dropZone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('dragover');
-            });
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
 
-            dropZone.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-            });
+            document.getElementById('uploadStatus').innerHTML = `<div class="alert alert-info">Uploading <i class="bi bi-hourglass-split"></i></div>`;
 
-            dropZone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    $('#uploadForm').submit();
-                }
-            });
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('uploadStatus').innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> ${data.message}</div>`;
 
-            dropZone.addEventListener('click', function() {
-                fileInput.click();
-            });
+                    // Update Info Panel
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('loadedState').style.display = 'block';
+                    document.getElementById('goToEDA').style.display = 'block';
 
-            $('#uploadForm').on('submit', function(e) {
-                e.preventDefault();
-                var fileInput = $('#fileInput')[0];
-                if (fileInput.files.length === 0) {
-                    $('#uploadMessage').html('<div class="alert alert-warning">Please select a file first.</div>');
-                    return;
-                }
+                    document.getElementById('infoRows').innerText = data.info.shape.split(' ')[0];
+                    document.getElementById('infoCols').innerText = data.info.shape.split(' ')[2];
 
-                var formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-
-                $('#uploadProgress').show();
-                $('#uploadBtn').prop('disabled', true);
-
-                $.ajax({
-                    url: '/upload',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function(response) {
-                        $('#uploadProgress').hide();
-                        $('#uploadBtn').prop('disabled', false);
-
-                        if (response.success) {
-                            $('#uploadMessage').html('<div class="alert alert-success"><i class="bi bi-check-circle"></i> ' + response.message + '</div>');
-
-                            var info = response.info;
-                            var infoHtml = '<div class="row">';
-                            infoHtml += '<div class="col-6"><div class="alert alert-primary"><strong>Rows:</strong> ' + info.shape.split(' ')[0] + '</div></div>';
-                            infoHtml += '<div class="col-6"><div class="alert alert-success"><strong>Columns:</strong> ' + info.shape.split(' ')[2] + '</div></div>';
-                            infoHtml += '</div>';
-                            infoHtml += '<h6>Columns:</h6><ul class="list-group mb-3">';
-                            info.columns.forEach(function(col) {
-                                infoHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">' + col + ' <span class="badge bg-secondary">' + info.dtypes[col] + '</span></li>';
-                            });
-                            infoHtml += '</ul>';
-                            $('#datasetInfo').html(infoHtml);
-                            $('#datasetPreview').html(info.preview);
-                        } else {
-                            $('#uploadMessage').html('<div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> ' + response.error + '</div>');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        $('#uploadProgress').hide();
-                        $('#uploadBtn').prop('disabled', false);
-                        $('#uploadMessage').html('<div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> Error: ' + xhr.responseJSON?.error || error + '</div>');
+                    const colList = document.getElementById('colList');
+                    colList.innerHTML = '';
+                    for (const [col, dtype] of Object.entries(data.info.dtypes)) {
+                        const div = document.createElement('div');
+                        div.className = 'info-item';
+                        div.innerHTML = `<span>${col}</span> <span class="badge bg-secondary">${dtype}</span>`;
+                        colList.appendChild(div);
                     }
-                });
+                } else {
+                    document.getElementById('uploadStatus').innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-circle-fill"></i> ${data.error}</div>`;
+                }
+            })
+            .catch(err => {
+                document.getElementById('uploadStatus').innerHTML = `<div class="alert alert-danger">Network Error: Could not connect to server.</div>`;
             });
-        });
+        }
     </script>
 </body>
 </html>

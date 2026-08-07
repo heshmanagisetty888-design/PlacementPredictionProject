@@ -7,7 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Chart.js Library for Pie and Distribution Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -28,7 +27,6 @@
         .sidebar-nav li a i { margin-right: 15px; font-size: 1.2rem; width: 25px; text-align: center; }
         .sidebar-nav li a:hover { background: rgba(255,255,255,0.1); color: #fff; transform: translateX(5px); }
         .sidebar-nav li a.active { background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; font-weight: 600; box-shadow: 0 4px 15px rgba(247,151,30,0.4); }
-        .sidebar-nav li a .badge { margin-left: auto; background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; font-weight: 600; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; }
 
         .main-content { margin-left: 280px; padding: 40px; width: calc(100% - 280px); min-height: 100vh; }
         .page-header { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.2); }
@@ -68,7 +66,6 @@
     </style>
 </head>
 <body>
-    <!-- Vertical Sidebar -->
     <div class="sidebar">
         <div class="sidebar-brand">
             <h2><i class="bi bi-graph-up"></i> Dashboard</h2>
@@ -77,24 +74,20 @@
         <ul class="sidebar-nav">
             <li><a href="/" class="active"><i class="bi bi-house"></i> <span>Dashboard</span></a></li>
             <li><a href="/dataset_loading"><i class="bi bi-upload"></i> <span>Dataset Loading</span></a></li>
-            <li><a href="/preprocessing"><i class="bi bi-gear"></i> <span>Preprocessing</span> <span class="badge">5</span></a></li>
+            <li><a href="/preprocessing"><i class="bi bi-gear"></i> <span>Preprocessing</span></a></li>
             <li><a href="/predict"><i class="bi bi-robot"></i> <span>Predict</span></a></li>
-            <li><a href="/students"><i class="bi bi-people"></i> <span>Students</span> <span class="badge">12</span></a></li>
+            <li><a href="/students"><i class="bi bi-people"></i> <span>Students</span></a></li>
+            <li><a href="/eda_info"><i class="bi bi-info-square"></i> <span>EDA Info</span></a></li>
             <li><a href="/analytics"><i class="bi bi-bar-chart"></i> <span>Analytics</span></a></li>
-            <li><a href="/about"><i class="bi bi-info-circle"></i> <span>About</span></a></li>
-            <li><a href="/help"><i class="bi bi-question-circle"></i> <span>Help</span></a></li>
         </ul>
     </div>
 
-    <!-- Main Content -->
     <div class="main-content">
-        <!-- Page Header -->
         <div class="page-header">
             <h1><i class="bi bi-speedometer2"></i> Dashboard Overview</h1>
             <p>Welcome to your Student Performance Prediction Dashboard</p>
         </div>
 
-        <!-- Quick Stats -->
         <div class="row g-4 mb-4" id="dashboardStats">
             <div class="col-md-3">
                 <div class="dashboard-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe); color: white;">
@@ -122,7 +115,6 @@
             </div>
         </div>
 
-        <!-- Dashboard Cards -->
         <div class="row g-4">
             <div class="col-md-4 col-lg-3">
                 <div class="dashboard-card" onclick="window.location.href='/dataset_loading'">
@@ -153,29 +145,21 @@
                 </div>
             </div>
             <div class="col-md-4 col-lg-3">
+                <div class="dashboard-card" onclick="window.location.href='/eda_info'">
+                    <div class="icon icon-purple"><i class="bi bi-info-square"></i></div>
+                    <h5>EDA Info</h5>
+                    <p>View dataset structure & stats</p>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
                 <div class="dashboard-card" onclick="window.location.href='/analytics'">
-                    <div class="icon icon-purple"><i class="bi bi-bar-chart"></i></div>
+                    <div class="icon icon-cyan"><i class="bi bi-bar-chart"></i></div>
                     <h5>Analytics</h5>
-                    <p>Explore data insights</p>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="dashboard-card" onclick="window.location.href='/about'">
-                    <div class="icon icon-cyan"><i class="bi bi-info-circle"></i></div>
-                    <h5>About</h5>
-                    <p>Learn about this project</p>
-                </div>
-            </div>
-            <div class="col-md-4 col-lg-3">
-                <div class="dashboard-card" onclick="window.location.href='/help'">
-                    <div class="icon icon-orange"><i class="bi bi-question-circle"></i></div>
-                    <h5>Help</h5>
-                    <p>Get help and support</p>
+                    <p>Explore data insights & visuals</p>
                 </div>
             </div>
         </div>
 
-        <!-- CHARTS SECTION ADDED HERE -->
         <div class="row g-4 mt-4">
             <div class="col-md-6">
                 <div class="chart-container">
@@ -203,9 +187,23 @@
         let distChartInstance = null;
 
         $(document).ready(function() {
-            // 1. Load Analytics Data (Doesn't matter if page is refreshed, backend auto-loads disk data)
-            loadDashboardData();
+            checkDataAndLoadDashboard();
         });
+
+        function checkDataAndLoadDashboard() {
+            $.ajax({
+                url: '/check_data_status',
+                type: 'GET',
+                success: function(response) {
+                    if (response.loaded) {
+                        loadDashboardData();
+                    } else {
+                        $('#totalStudents').text('No Data');
+                        console.log("Please upload a dataset from Dataset Loading page.");
+                    }
+                }
+            });
+        }
 
         function loadDashboardData() {
             $.ajax({
@@ -213,95 +211,43 @@
                 type: 'GET',
                 success: function(response) {
                     if (response.success) {
-                        // Update the 4 Stats Cards
-                        $('#totalStudents').text(response.total_students);
-                        $('#totalFeatures').text(response.total_features);
-                        $('#avgScore').text(response.avg_score + '%');
-
-                        // Calculate pass rate roughly based on data (or just show it)
-                        // The backend calculates an average pass rate based on top 60% of first numeric col
-                        // For simplicity, we set it same as avg score or calculate in backend.
-                        // Backend now returns pass_rate properly!
-
                         // Draw Pie Chart
-                        if (response.pie_labels && response.pie_data.length > 0) {
-                            renderPieChart(response.pie_labels, response.pie_data);
-                        }
+                        if (response.visualizations) {
+                            // Find Pie Chart image from base64
+                            const pieViz = response.visualizations.find(v => v.type === 'pie');
+                            if(pieViz) {
+                                // We can't easily draw base64 images in Chart.js canvas.
+                                // We will replace the canvas with an img tag for the dashboard
+                                const pieCanvas = document.getElementById('pieChart');
+                                const parent = pieCanvas.parentNode;
+                                const img = document.createElement('img');
+                                img.src = `data:image/png;base64,${pieViz.image}`;
+                                img.style.width = '100%';
+                                img.style.height = '100%';
+                                img.style.objectFit = 'contain';
+                                parent.innerHTML = '';
+                                parent.appendChild(img);
+                            }
 
-                        // Draw Distribution Chart
-                        if (response.dist_values && response.dist_values.length > 0) {
-                            $('#distLabel').text('(' + response.dist_col_name + ')');
-                            renderDistChart(response.dist_values);
+                            // Find Distribution image from base64
+                            const distViz = response.visualizations.find(v => v.type === 'distribution');
+                            if(distViz) {
+                                const distCanvas = document.getElementById('distChart');
+                                const parent = distCanvas.parentNode;
+                                const img = document.createElement('img');
+                                img.src = `data:image/png;base64,${distViz.image}`;
+                                img.style.width = '100%';
+                                img.style.height = '100%';
+                                img.style.objectFit = 'contain';
+                                parent.innerHTML = '';
+                                parent.appendChild(img);
+                                $('#distLabel').text('(Displaying Graph)');
+                            }
                         }
-                    } else {
-                        console.log("Data not loaded. Upload a dataset.");
                     }
                 },
                 error: function() {
                     console.log("Error connecting to analytics backend.");
-                }
-            });
-        }
-
-        function renderPieChart(labels, data) {
-            const ctx = document.getElementById('pieChart').getContext('2d');
-            if(pieChartInstance) pieChartInstance.destroy();
-
-            const colors = ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'];
-
-            pieChartInstance = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colors.slice(0, data.length),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
-        }
-
-        function renderDistChart(values) {
-            const ctx = document.getElementById('distChart').getContext('2d');
-            if(distChartInstance) distChartInstance.destroy();
-
-            // Create histogram bins
-            const min = Math.min(...values);
-            const max = Math.max(...values);
-            const binSize = (max - min) / 10;
-            let bins = Array(10).fill(0);
-
-            values.forEach(v => {
-                let index = Math.floor((v - min) / binSize);
-                if(index === 10) index = 9;
-                bins[index]++;
-            });
-
-            let labels = bins.map((_, i) => (min + (i * binSize)).toFixed(1));
-
-            distChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Student Count',
-                        data: bins,
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
                 }
             });
         }

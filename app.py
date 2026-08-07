@@ -27,13 +27,15 @@ app.secret_key = 'your_secret_key_here'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Global variables
-current_data = None
+# PERSISTENT FILE PATH
 PERSISTENT_FILE_PATH = os.path.join(app.config['UPLOAD_FOLDER'], 'persistent_data.csv')
+
+# Global variables
 trained_model = None
 feature_columns = None
 target_column = None
 analytics_cache = None
+eda_cache = None
 
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 
@@ -42,25 +44,40 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def load_persistent_data():
-    global current_data, analytics_cache
+# CRITICAL FIX: SAFE DATA LOADER WITH AUTOMATIC CLEANUP
+def get_data_from_disk():
+    """Reads the file from disk and cleans it to prevent crashes."""
     if os.path.exists(PERSISTENT_FILE_PATH):
         try:
             if PERSISTENT_FILE_PATH.endswith('.csv'):
-                current_data = pd.read_csv(PERSISTENT_FILE_PATH)
+                df = pd.read_csv(PERSISTENT_FILE_PATH)
             else:
-                current_data = pd.read_excel(PERSISTENT_FILE_PATH)
-            analytics_cache = None
-            print(f"✅ Loaded persistent dataset: {current_data.shape}")
-            return True
+                df = pd.read_excel(PERSISTENT_FILE_PATH)
+
+            # 1. Clean Infinite numbers
+            df = df.replace([np.inf, -np.inf], np.nan)
+
+            # 2. Drop completely empty rows
+            df = df.dropna(how='all')
+
+            print(f"📁 Loaded dataset successfully: {df.shape}")
+            return df
         except Exception as e:
-            print(f"⚠️ Error loading persistent data: {e}")
-            return False
-    return False
+            print(f"⚠️ Error reading data: {e}")
+            return None
+    return None
 
 
-# Load on startup
-load_persistent_data()
+@app.route('/check_data_status', methods=['GET'])
+def check_data_status():
+    df = get_data_from_disk()
+    if df is not None:
+        return jsonify({
+            'loaded': True,
+            'columns': df.columns.tolist(),
+            'shape': df.shape
+        })
+    return jsonify({'loaded': False})
 
 
 @app.route('/')
@@ -73,27 +90,9 @@ def dataset_loading():
     return render_template('dataset_loading.html')
 
 
-# -------------------------------------------------------------
-# NEW ROUTE: Allows frontend to check if data is already loaded
-# -------------------------------------------------------------
-@app.route('/check_data_status', methods=['GET'])
-def check_data_status():
-    global current_data
-    if current_data is None:
-        load_persistent_data()  # Try to load if not in memory
-
-    if current_data is not None:
-        return jsonify({
-            'loaded': True,
-            'columns': current_data.columns.tolist(),
-            'shape': current_data.shape
-        })
-    return jsonify({'loaded': False})
-
-
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global current_data, analytics_cache
+    global analytics_cache, eda_cache
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -115,9 +114,10 @@ def upload_file():
                 full_df = pd.read_excel(filepath)
                 preview_df = pd.read_excel(filepath, nrows=100)
 
-            current_data = full_df.copy()
+            # Save permanently
+            full_df.to_csv(PERSISTENT_FILE_PATH, index=False)
             analytics_cache = None
-            current_data.to_csv(PERSISTENT_FILE_PATH, index=False)
+            eda_cache = None
 
             preview = preview_df.head(10).to_html(classes='table table-striped table-bordered')
 
@@ -148,11 +148,11 @@ def preprocessing():
 
 @app.route('/preprocess', methods=['POST'])
 def preprocess():
-    global current_data, analytics_cache
+    global analytics_cache, eda_cache
 
-    if current_data is None:
-        if not load_persistent_data():
-            return jsonify({'error': 'No data loaded. Please upload a dataset first.'}), 400
+    df = get_data_from_disk()
+    if df is None:
+        return jsonify({'error': 'No data found on disk. Please upload a dataset first.'}), 400
 
     action = request.json.get('action')
     result = {}
@@ -162,90 +162,73 @@ def preprocess():
             method = request.json.get('method', 'drop')
             column = request.json.get('column')
 
-            if column and column in current_data.columns:
+            if column and column in df.columns:
                 if method == 'drop':
-                    current_data = current_data.dropna(subset=[column])
-                elif method == 'mean':
-                    current_data[column].fillna(current_data[column].mean(), inplace=True)
-                elif method == 'median':
-                    current_data[column].fillna(current_data[column].median(), inplace=True)
+                    df = df.dropna(subset=[column])
+                    result = {'success': True, 'message': f'Dropped rows with missing values in {column}'}
+                elif method in ['mean', 'median']:
+                    if pd.api.types.is_numeric_dtype(df[column]):
+                        fill_value = df[column].mean() if method == 'mean' else df[column].median()
+                        if pd.isna(fill_value):
+                            result = {'success': False, 'error': f'Cannot calculate {method} on column "{column}".'}
+                        else:
+                            df[column].fillna(fill_value, inplace=True)
+                            result = {'success': True, 'message': f'Missing values in "{column}" filled using {method}'}
+                    else:
+                        result = {'success': False, 'error': f'Cannot apply {method} to non-numeric column "{column}".'}
             else:
                 if method == 'drop':
-                    before = len(current_data)
-                    current_data = current_data.dropna()
-                    after = len(current_data)
-                    result = {
-                        'success': True,
-                        'message': f'Dropped {before - after} rows with missing values',
-                        'rows_removed': before - after
-                    }
+                    before = len(df)
+                    df = df.dropna()
+                    result = {'success': True, 'message': f'Dropped {before - len(df)} rows'}
                 else:
-                    numeric_cols = current_data.select_dtypes(include=[np.number]).columns
+                    numeric_cols = df.select_dtypes(include=[np.number]).columns
                     for col in numeric_cols:
-                        if method == 'mean':
-                            current_data[col].fillna(current_data[col].mean(), inplace=True)
-                        elif method == 'median':
-                            current_data[col].fillna(current_data[col].median(), inplace=True)
-                    result = {
-                        'success': True,
-                        'message': f'Missing values filled using {method}',
-                        'null_counts': current_data.isnull().sum().to_dict()
-                    }
-            current_data.to_csv(PERSISTENT_FILE_PATH, index=False)
+                        fill_val = df[col].mean() if method == 'mean' else df[col].median()
+                        if not pd.isna(fill_val):
+                            df[col].fillna(fill_val, inplace=True)
+                    result = {'success': True, 'message': f'Missing values filled using {method} on numeric columns'}
+
+            df.to_csv(PERSISTENT_FILE_PATH, index=False)
             analytics_cache = None
+            eda_cache = None
 
         elif action == 'encoding':
             column = request.json.get('column')
-            if column and column in current_data.columns:
+            if column and column in df.columns:
                 le = LabelEncoder()
-                current_data[column] = le.fit_transform(current_data[column].astype(str))
-                result = {
-                    'success': True,
-                    'message': f'Column {column} encoded successfully'
-                }
-                current_data.to_csv(PERSISTENT_FILE_PATH, index=False)
+                df[column] = le.fit_transform(df[column].astype(str))
+                result = {'success': True, 'message': f'Column {column} encoded successfully'}
+                df.to_csv(PERSISTENT_FILE_PATH, index=False)
                 analytics_cache = None
+                eda_cache = None
 
         elif action == 'feature_scaling':
-            columns = current_data.select_dtypes(include=[np.number]).columns.tolist()
+            columns = df.select_dtypes(include=[np.number]).columns.tolist()
             if columns:
                 scaler = StandardScaler()
-                current_data[columns] = scaler.fit_transform(current_data[columns])
-                result = {
-                    'success': True,
-                    'message': 'Features scaled successfully',
-                    'scaled_columns': columns
-                }
-                current_data.to_csv(PERSISTENT_FILE_PATH, index=False)
+                df[columns] = scaler.fit_transform(df[columns])
+                result = {'success': True, 'message': 'Features scaled successfully', 'scaled_columns': columns}
+                df.to_csv(PERSISTENT_FILE_PATH, index=False)
                 analytics_cache = None
+                eda_cache = None
 
         elif action == 'outlier_detection':
             column = request.json.get('column')
-            if column and column in current_data.columns:
-                Q1 = current_data[column].quantile(0.25)
-                Q3 = current_data[column].quantile(0.75)
+            if column and column in df.columns:
+                Q1 = df[column].quantile(0.25)
+                Q3 = df[column].quantile(0.75)
                 IQR = Q3 - Q1
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
-                outliers = current_data[(current_data[column] < lower_bound) | (current_data[column] > upper_bound)]
-                result = {
-                    'success': True,
-                    'message': f'Outliers detected in {column}',
-                    'outliers_count': len(outliers)
-                }
+                outliers = df[(df[column] < (Q1 - 1.5 * IQR)) | (df[column] > (Q3 + 1.5 * IQR))]
+                result = {'success': True, 'message': f'Outliers detected in {column}', 'outliers_count': len(outliers)}
 
         elif action == 'remove_duplicates':
-            before = len(current_data)
-            current_data = current_data.drop_duplicates()
-            after = len(current_data)
-            result = {
-                'success': True,
-                'message': f'Removed {before - after} duplicate rows',
-                'rows_removed': before - after,
-                'remaining_rows': after
-            }
-            current_data.to_csv(PERSISTENT_FILE_PATH, index=False)
+            before = len(df)
+            df = df.drop_duplicates()
+            result = {'success': True, 'message': f'Removed {before - len(df)} duplicate rows'}
+            df.to_csv(PERSISTENT_FILE_PATH, index=False)
             analytics_cache = None
+            eda_cache = None
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -260,20 +243,22 @@ def predict():
 
 @app.route('/train_model', methods=['POST'])
 def train_model():
-    global current_data, trained_model, feature_columns, target_column
-    if current_data is None:
-        if not load_persistent_data():
-            return jsonify({'error': 'No data loaded'}), 400
+    global trained_model, feature_columns, target_column
+
+    df = get_data_from_disk()
+    if df is None:
+        return jsonify({'error': 'No data found on disk. Please upload a dataset first.'}), 400
+
     try:
         data = request.json
         target = data.get('target_column')
         model_type = data.get('model_type', 'regression')
         test_size = float(data.get('test_size', 0.2))
 
-        if target not in current_data.columns:
+        if target not in df.columns:
             return jsonify({'error': f'Target column {target} not found'}), 400
-        X = current_data.drop(columns=[target])
-        y = current_data[target]
+        X = df.drop(columns=[target])
+        y = df[target]
         if model_type == 'regression' and not pd.api.types.is_numeric_dtype(y):
             return jsonify({'error': 'Target column must be numeric for regression'}), 400
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
@@ -335,6 +320,59 @@ def students():
     return render_template('students.html')
 
 
+@app.route('/get_students_data', methods=['GET'])
+def get_students_data():
+    df = get_data_from_disk()
+    if df is None:
+        return jsonify({'success': False, 'message': 'No dataset uploaded. Please go to Dataset Loading.'})
+
+    try:
+        preview_data = df.head(100).to_dict(orient='records')
+        columns = df.columns.tolist()
+        return jsonify({
+            'success': True,
+            'data': preview_data,
+            'columns': columns,
+            'total_rows': len(df)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/eda_info')
+def eda_info():
+    return render_template('eda_info.html')
+
+
+@app.route('/get_eda_info', methods=['GET'])
+def get_eda_info():
+    global eda_cache
+    if eda_cache:
+        return jsonify(eda_cache)
+
+    df = get_data_from_disk()
+    if df is None:
+        return jsonify({'error': 'No data found on disk. Please upload a dataset.'}), 400
+
+    try:
+        info = {
+            'success': True,
+            'rows': df.shape[0],
+            'columns': df.shape[1],
+            'column_names': df.columns.tolist(),
+            'dtypes': df.dtypes.astype(str).to_dict(),
+            'null_counts': df.isnull().sum().to_dict(),
+            'null_total': int(df.isnull().sum().sum()),
+            'memory_usage': f"{round(df.memory_usage(deep=True).sum() / (1024 * 1024), 2)} MB",
+            'head': df.head(10).to_html(classes='table table-striped table-bordered table-sm', index=False),
+            'describe': df.describe(include='all').to_html(classes='table table-striped table-bordered table-sm')
+        }
+        eda_cache = info
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/analytics')
 def analytics():
     return render_template('analytics.html')
@@ -342,158 +380,152 @@ def analytics():
 
 @app.route('/get_analytics', methods=['GET'])
 def get_analytics():
-    global current_data, analytics_cache
-    if current_data is None:
-        if not load_persistent_data():
-            return jsonify({'error': 'No data loaded'}), 400
-
+    global analytics_cache
     if analytics_cache:
         return jsonify(analytics_cache)
 
+    df = get_data_from_disk()
+    if df is None:
+        return jsonify({'error': 'No data found on disk. Please upload a dataset.'}), 400
+
     try:
         visualizations = []
-        numeric_cols = current_data.select_dtypes(include=[np.number]).columns
 
-        if len(numeric_cols) > 1:
-            plt.figure(figsize=(10, 8))
-            corr_matrix = current_data[numeric_cols].corr()
-            sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f')
-            plt.title('Feature Correlation Heatmap', fontsize=14, fontweight='bold')
+        # CRITICAL FIX: Drop columns that are entirely empty before generating graphs
+        df = df.dropna(axis=1, how='all')
+
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        cat_cols = df.select_dtypes(include=['object']).columns
+
+        # 1. PIE CHART (Categorical)
+        if len(cat_cols) > 0:
+            col = cat_cols[0]
+            plt.figure(figsize=(8, 6))
+            counts = df[col].value_counts()
+            if len(counts) > 6:
+                top_counts = counts[:6]
+                top_counts['Others'] = counts[6:].sum()
+                counts = top_counts
+            colors = ['#f7971e', '#ffd200', '#43e97b', '#4facfe', '#fa709a', '#a18cd1']
+            plt.pie(counts.values, labels=counts.index, autopct='%1.1f%%', colors=colors[:len(counts)], startangle=90,
+                    textprops={'fontsize': 11})
+            plt.title(f'Distribution: {col}', fontsize=14, fontweight='bold')
             plt.tight_layout()
             img = BytesIO()
             plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
             img.seek(0)
-            corr_plot = base64.b64encode(img.getvalue()).decode()
             visualizations.append({
-                'title': 'Correlation Heatmap',
-                'image': corr_plot,
-                'type': 'correlation'
-            })
-            plt.close()
-
-        if 'grade' in current_data.columns:
-            plt.figure(figsize=(10, 6))
-            grade_counts = current_data['grade'].value_counts()
-            colors = ['#f7971e', '#ffd200', '#43e97b', '#4facfe', '#fa709a']
-            bars = plt.bar(grade_counts.index, grade_counts.values, color=colors[:len(grade_counts)], edgecolor='white',
-                           linewidth=2)
-            plt.title('Student Grade Distribution', fontsize=14, fontweight='bold')
-            plt.xlabel('Grade', fontsize=12)
-            plt.ylabel('Number of Students', fontsize=12)
-            plt.xticks(rotation=45)
-            for bar in bars:
-                height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width() / 2., height, f'{int(height)}', ha='center', va='bottom',
-                         fontweight='bold')
-            plt.tight_layout()
-            img = BytesIO()
-            plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
-            img.seek(0)
-            bar_plot = base64.b64encode(img.getvalue()).decode()
-            visualizations.append({
-                'title': 'Grade Distribution (Bar Chart)',
-                'image': bar_plot,
-                'type': 'bar'
-            })
-            plt.close()
-
-        if 'department' in current_data.columns:
-            plt.figure(figsize=(10, 8))
-            dept_counts = current_data['department'].value_counts()
-            colors = ['#f7971e', '#ffd200', '#43e97b', '#4facfe', '#fa709a', '#a18cd1', '#fbc2eb']
-            if len(dept_counts) > 6:
-                top_depts = dept_counts[:6]
-                other_count = dept_counts[6:].sum()
-                top_depts['Others'] = other_count
-                dept_counts = top_depts
-            plt.pie(dept_counts.values, labels=dept_counts.index, autopct='%1.1f%%', colors=colors[:len(dept_counts)],
-                    startangle=90, textprops={'fontsize': 11, 'fontweight': 'bold'})
-            plt.title('Student Distribution by Department', fontsize=14, fontweight='bold')
-            plt.tight_layout()
-            img = BytesIO()
-            plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
-            img.seek(0)
-            pie_plot = base64.b64encode(img.getvalue()).decode()
-            visualizations.append({
-                'title': 'Department Distribution (Pie Chart)',
-                'image': pie_plot,
+                'title': f'Pie Chart: {col}',
+                'image': base64.b64encode(img.getvalue()).decode(),
                 'type': 'pie'
             })
             plt.close()
 
-        placement_cols = [col for col in current_data.columns if
-                          'placement' in col.lower() or 'placed' in col.lower() or 'status' in col.lower()]
-        if placement_cols:
-            placement_col = placement_cols[0]
-            plt.figure(figsize=(10, 8))
-            if current_data[placement_col].dtype == 'object':
-                placement_counts = current_data[placement_col].value_counts()
-                colors = ['#43e97b', '#fa709a', '#ffd200', '#4facfe']
-                wedges, texts, autotexts = plt.pie(placement_counts.values, labels=placement_counts.index,
-                                                   autopct='%1.1f%%', colors=colors[:len(placement_counts)],
-                                                   startangle=90, wedgeprops={'width': 0.7},
-                                                   textprops={'fontsize': 11, 'fontweight': 'bold'})
-                for autotext in autotexts:
-                    autotext.set_color('white')
-                    autotext.set_fontweight('bold')
-                plt.title('Placement Status Overview', fontsize=14, fontweight='bold')
-            else:
-                placement_counts = current_data[placement_col].value_counts().sort_index()
-                bars = plt.bar(placement_counts.index.astype(str), placement_counts.values,
-                               color=['#43e97b', '#fa709a', '#ffd200'])
-                plt.title('Placement Overview', fontsize=14, fontweight='bold')
-                plt.xlabel(placement_col, fontsize=12)
-                plt.ylabel('Count', fontsize=12)
-                for bar in bars:
-                    height = bar.get_height()
-                    plt.text(bar.get_x() + bar.get_width() / 2., height, f'{int(height)}', ha='center', va='bottom',
-                             fontweight='bold')
+        # 2. BAR GRAPH
+        if len(cat_cols) > 1:
+            col = cat_cols[1]
+            plt.figure(figsize=(10, 6))
+            counts = df[col].value_counts()
+            if len(counts) > 10:
+                counts = counts[:10]
+            sns.barplot(x=counts.index, y=counts.values, palette='viridis')
+            plt.title(f'Bar Chart: {col}', fontsize=14, fontweight='bold')
+            plt.xlabel(col)
+            plt.ylabel('Count')
+            plt.xticks(rotation=45)
             plt.tight_layout()
             img = BytesIO()
             plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
             img.seek(0)
-            placement_plot = base64.b64encode(img.getvalue()).decode()
             visualizations.append({
-                'title': 'Placement Overview',
-                'image': placement_plot,
-                'type': 'placement'
+                'title': f'Bar Chart: {col}',
+                'image': base64.b64encode(img.getvalue()).decode(),
+                'type': 'bar'
+            })
+            plt.close()
+        elif len(numeric_cols) > 0:
+            col = numeric_cols[0]
+            plt.figure(figsize=(10, 6))
+            counts = df[col].value_counts().sort_index()
+            if len(counts) > 10:
+                counts = counts[:10]
+            sns.barplot(x=counts.index.astype(str), y=counts.values, palette='magma')
+            plt.title(f'Bar Chart (Numeric): {col}', fontsize=14, fontweight='bold')
+            plt.xlabel(col)
+            plt.ylabel('Count')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            img = BytesIO()
+            plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
+            img.seek(0)
+            visualizations.append({
+                'title': f'Bar Chart: {col}',
+                'image': base64.b64encode(img.getvalue()).decode(),
+                'type': 'bar'
             })
             plt.close()
 
-        for col in numeric_cols[:2]:
-            if col not in ['score', 'grade']:
-                plt.figure(figsize=(10, 6))
-                sns.histplot(current_data[col], kde=True, color='#f7971e', bins=20)
-                plt.title(f'Distribution of {col}', fontsize=14, fontweight='bold')
-                plt.xlabel(col, fontsize=12)
-                plt.ylabel('Frequency', fontsize=12)
-                plt.tight_layout()
-                img = BytesIO()
-                plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
-                img.seek(0)
-                dist_plot = base64.b64encode(img.getvalue()).decode()
-                visualizations.append({
-                    'title': f'Distribution - {col}',
-                    'image': dist_plot,
-                    'type': 'distribution'
-                })
-                plt.close()
+        # 3. Correlation Heatmap
+        if len(numeric_cols) > 1:
+            plt.figure(figsize=(10, 8))
+            corr_matrix = df[numeric_cols].corr()
+            sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f', linewidths=0.5)
+            plt.title('Correlation Heatmap', fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            img = BytesIO()
+            plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
+            img.seek(0)
+            visualizations.append({
+                'title': 'Correlation Heatmap',
+                'image': base64.b64encode(img.getvalue()).decode(),
+                'type': 'heatmap'
+            })
+            plt.close()
 
-        stats = current_data.describe().to_html(classes='table table-striped')
-        total_students = len(current_data)
-        avg_score = float(current_data[numeric_cols].mean().mean()) if len(numeric_cols) > 0 else 0
+        # 4. Distribution (Histogram)
+        if len(numeric_cols) > 0:
+            col = numeric_cols[0]
+            plt.figure(figsize=(10, 6))
+            sns.histplot(df[col], kde=True, color='#f7971e', bins=30)
+            plt.title(f'Distribution: {col}', fontsize=14, fontweight='bold')
+            plt.xlabel(col)
+            plt.tight_layout()
+            img = BytesIO()
+            plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
+            img.seek(0)
+            visualizations.append({
+                'title': f'Distribution: {col}',
+                'image': base64.b64encode(img.getvalue()).decode(),
+                'type': 'distribution'
+            })
+            plt.close()
+
+        # 5. Boxplot (Outliers)
+        if len(numeric_cols) > 1:
+            col = numeric_cols[1]
+            plt.figure(figsize=(8, 6))
+            sns.boxplot(y=df[col], color='#43e97b')
+            plt.title(f'Outliers: {col}', fontsize=14, fontweight='bold')
+            plt.ylabel(col)
+            plt.tight_layout()
+            img = BytesIO()
+            plt.savefig(img, format='png', bbox_inches='tight', dpi=100)
+            img.seek(0)
+            visualizations.append({
+                'title': f'Outliers: {col}',
+                'image': base64.b64encode(img.getvalue()).decode(),
+                'type': 'boxplot'
+            })
+            plt.close()
 
         analytics_cache = {
             'success': True,
-            'visualizations': visualizations,
-            'stats': stats,
-            'shape': current_data.shape,
-            'total_students': total_students,
-            'avg_score': avg_score
+            'visualizations': visualizations
         }
         return jsonify(analytics_cache)
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        # This catches ANY crash and sends the REAL error to your browser console/alert
+        return jsonify({'error': f"Python Crash: {str(e)}"}), 400
 
 
 @app.route('/about')

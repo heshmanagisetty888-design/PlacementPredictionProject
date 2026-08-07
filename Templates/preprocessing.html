@@ -55,6 +55,7 @@
             <li><a href="/preprocessing" class="active"><i class="bi bi-gear"></i> <span>Preprocessing</span></a></li>
             <li><a href="/predict"><i class="bi bi-robot"></i> <span>Predict</span></a></li>
             <li><a href="/students"><i class="bi bi-people"></i> <span>Students</span></a></li>
+            <li><a href="/eda_info"><i class="bi bi-info-square"></i> <span>EDA Info</span></a></li>
             <li><a href="/analytics"><i class="bi bi-bar-chart"></i> <span>Analytics</span></a></li>
         </ul>
     </div>
@@ -141,22 +142,13 @@
     </div>
 
     <script>
-        // 1. Run this immediately when page loads to check for saved data
-        document.addEventListener('DOMContentLoaded', function() {
-            checkLoadedData();
-        });
+        document.addEventListener('DOMContentLoaded', function() { checkLoadedData(); });
 
         function checkLoadedData() {
             fetch('/check_data_status')
             .then(response => response.json())
             .then(data => {
-                if (data.loaded) {
-                    // Update all 3 dropdowns with the returned columns
-                    updateDropdowns(data.columns);
-                } else {
-                    // If no data is loaded, leave dropdowns as "No Data Loaded"
-                    console.log("No dataset loaded yet.");
-                }
+                if (data.loaded) { updateDropdowns(data.columns); }
             })
             .catch(err => console.error("Error checking data:", err));
         }
@@ -165,15 +157,11 @@
             const dropdowns = ['missingCol', 'encodeCol', 'outlierCol'];
             dropdowns.forEach(id => {
                 const select = document.getElementById(id);
-                select.innerHTML = ''; // Clear existing "No Data Loaded"
-
-                // Add default empty option
+                select.innerHTML = '';
                 const defaultOpt = document.createElement('option');
                 defaultOpt.value = "";
                 defaultOpt.textContent = "-- Select Column --";
                 select.appendChild(defaultOpt);
-
-                // Add actual column names from dataset
                 columns.forEach(col => {
                     const opt = document.createElement('option');
                     opt.value = col;
@@ -186,11 +174,9 @@
         function switchTab(tabId, btnElement) {
             document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.action-area').forEach(a => a.classList.remove('active'));
-
             btnElement.classList.add('active');
             document.getElementById('tab-' + tabId).classList.add('active');
             document.getElementById('actionTitle').innerText = btnElement.innerText.trim();
-
             const box = document.getElementById('resultBox');
             box.style.display = 'none';
             box.classList.remove('success');
@@ -199,12 +185,10 @@
         function applyPreprocess(action) {
             const box = document.getElementById('resultBox');
             const msg = document.getElementById('resultMessage');
-
             box.style.display = 'none';
             box.classList.remove('success');
 
             let payload = { action: action };
-
             if (action === 'missing_values') {
                 payload.column = document.getElementById('missingCol').value;
                 payload.method = document.getElementById('missingMethod').value;
@@ -226,7 +210,7 @@
                     box.classList.add('success');
                     msg.innerText = data.message;
                 } else {
-                    msg.innerText = "Error: " + (data.error || "Unknown error occurred");
+                    msg.innerText = data.error || "Unknown error occurred";
                 }
             })
             .catch(err => {
