@@ -1,0 +1,197 @@
+/* Custom CSS for Student Performance Dashboard */
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+.btn-purple {
+    background-color: #6f42c1;
+    color: white;
+}
+
+.btn-purple:hover {
+    background-color: #5a32a3;
+    color: white;
+}
+
+/* Dashboard cards */
+.dashboard-card {
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Table styling */
+.table {
+    font-size: 0.9rem;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Form styling */
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Upload area */
+#uploadMessage {
+    margin-top: 15px;
+}
+
+#datasetInfo {
+    padding: 10px;
+}
+
+#datasetPreview {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+#datasetPreview table {
+    font-size: 0.85rem;
+}
+
+/* Preprocessing options */
+.list-group-item {
+    cursor: pointer;
+    border-left: 3px solid transparent;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: #0d6efd;
+}
+
+.list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Analytics */
+#analyticsContent img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Accordion styling */
+.accordion-button:not(.collapsed) {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+}
+
+/* Help section */
+.accordion-body {
+    padding: 1.5rem;
+}
+
+.accordion-body ul,
+.accordion-body ol {
+    padding-left: 1.5rem;
+}
+
+.accordion-body li {
+    margin-bottom: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar-nav .nav-link {
+        padding: 0.5rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+
+/* Loading spinner */
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #0d6efd;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Alert animations */
+.alert {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
